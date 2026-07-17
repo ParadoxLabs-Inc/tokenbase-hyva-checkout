@@ -44,7 +44,8 @@ $formConfig = [
     <?php if ($block->isEdit()): ?>
         <?= $escaper->escapeHtml(__('Editing %1', $block->getCard()->getLabel())) ?>
     <?php else: ?>
-        <?= $escaper->escapeHtml(__('Add A Credit Card')) ?>
+        <?php // Gateways can override via <argument name="form_title"> on the form block. ?>
+        <?= $escaper->escapeHtml(__($block->getData('form_title') ?: 'Add A Credit Card')) ?>
     <?php endif; ?>
 </h2>
 
@@ -75,7 +76,7 @@ $formConfig = [
 
     <section x-show="step === 'payment'" x-cloak>
         <fieldset class="mb-4">
-            <legend class="text-lg font-medium mb-2"><?= $escaper->escapeHtml(__('Cardholder Information')) ?></legend>
+            <legend class="text-lg font-medium mb-2"><?= $escaper->escapeHtml(__('Billing Information')) ?></legend>
             <address class="not-italic text-sm text-gray-700 whitespace-pre-line" x-text="addressSummary"></address>
             <button type="button" class="underline text-primary text-sm mt-2" @click="editAddress">
                 <?= $escaper->escapeHtml(__('Edit')) ?>
