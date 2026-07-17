@@ -56,7 +56,10 @@ $formConfig = [
       data-config="<?= $escaper->escapeHtmlAttr(json_encode($formConfig)) ?>"
 >
     <?= /* @noEscape */ $block->getBlockHtml('formkey') ?>
-    <input type="hidden" name="card_id" value="<?= $block->getCard()->getId() ? $escaper->escapeHtmlAttr(
+    <?php /* Save reads the card hash from param 'id' (NOT card_id — Luma posts card_id and Save
+             ignores it, making edits silently create duplicates on some gateways). Posting 'id'
+             makes edit actually update the loaded card. Empty on add. */ ?>
+    <input type="hidden" name="id" value="<?= $block->getCard()->getId() ? $escaper->escapeHtmlAttr(
         $block->getCard()->getHash()
     ) : '' ?>"/>
     <input type="hidden" name="method" value="<?= /* @noEscape */ $code ?>"/>
