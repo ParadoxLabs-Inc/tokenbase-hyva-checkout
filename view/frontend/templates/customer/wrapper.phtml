@@ -1,0 +1,68 @@
+<?php declare(strict_types=1);
+
+/**
+ * Copyright © 2023-present ParadoxLabs, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Need help? Try our knowledgebase and support system:
+ *
+ * @link https://support.paradoxlabs.com
+ */
+
+use Hyva\Theme\Model\ViewModelRegistry;
+use Magento\Framework\Escaper;
+use ParadoxLabs\TokenBase\Block\Customer\Wrapper;
+use ParadoxLabs\TokenBaseHyvaCheckout\ViewModel\SupportedMethods;
+
+/** @var Wrapper $block */
+/** @var Escaper $escaper */
+/** @var ViewModelRegistry $viewModels */
+
+$supportedMethods = $viewModels->require(SupportedMethods::class);
+$currentMethod = (string)$block->getCurrentMethod();
+?>
+<?php if (count($block->getActiveMethods()) > 1): ?>
+    <nav class="flex flex-wrap gap-2 mb-6">
+        <?php foreach ($block->getActiveMethods() as $method): ?>
+            <a href="<?= $escaper->escapeUrl($block->getUrl('*/*/*', ['method' => $method])); ?>"
+               class="px-4 py-2 rounded-md text-sm border <?= $currentMethod === $method
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50' ?>"
+            >
+                <?= $escaper->escapeHtml($block->getMethodTitle($method)); ?>
+            </a>
+        <?php endforeach; ?>
+    </nav>
+<?php endif; ?>
+
+<div class="manage-payment-method">
+    <?php if ($supportedMethods->isSupported($currentMethod)): ?>
+        <?= /* @noEscape */ $block->getChildHtml(); ?>
+    <?php else: ?>
+        <?php
+        // Method without a Hyva-compatible add/edit form: the card list and delete actions are
+        // gateway-agnostic, so render those with the Hyva template and gate only the form pane.
+        $cardsBlock = $block->getLayout()->getBlock('tokenbase_manage_' . $currentMethod . '_cards');
+        ?>
+        <?php if ($cardsBlock): ?>
+            <?php $cardsBlock->setTemplate('ParadoxLabs_TokenBaseHyvaCheckout::customer/cards.phtml'); ?>
+            <?= /* @noEscape */ $cardsBlock->toHtml(); ?>
+        <?php endif; ?>
+        <div class="message info my-4">
+            <?= $escaper->escapeHtml(
+                __('Adding or editing payment data for this payment method is not yet available on this theme.')
+            ) ?>
+        </div>
+    <?php endif; ?>
+</div>

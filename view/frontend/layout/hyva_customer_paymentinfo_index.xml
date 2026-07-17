@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<page xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:framework:View/Layout/etc/page_configuration.xsd">
+    <body>
+        <!-- Hyva theme: swap the Luma wrapper template. Per-method blocks are retemplated by each
+             gateway's hyva_customer_paymentinfo_index_{method} handle; unsupported methods are
+             handled by the wrapper template via the SupportedMethods view model. -->
+        <referenceBlock name="tokenbase_customer_wrapper" template="ParadoxLabs_TokenBaseHyvaCheckout::customer/wrapper.phtml"/>
+    </body>
+</page>

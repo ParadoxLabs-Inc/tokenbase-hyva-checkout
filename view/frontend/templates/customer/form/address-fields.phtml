@@ -1,0 +1,182 @@
+<?php declare(strict_types=1);
+
+/**
+ * Copyright © 2023-present ParadoxLabs, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Need help? Try our knowledgebase and support system:
+ *
+ * @link https://support.paradoxlabs.com
+ */
+
+use Magento\Framework\Escaper;
+use ParadoxLabs\TokenBase\Block\Customer\Form;
+
+/**
+ * Shared billing-address fieldset for the Hyva payment-options add/edit form.
+ * Field names match the Luma templates exactly (billing[...]), so the TokenBase Save controller
+ * and each gateway's capture-context endpoint consume them unchanged.
+ *
+ * @var Form $block
+ * @var Escaper $escaper
+ */
+
+$address = $block->getAddress();
+$inputClasses = 'form-input block w-full';
+?>
+<fieldset class="mb-4">
+    <legend class="text-lg font-medium mb-2"><?= $escaper->escapeHtml(__('Cardholder Information')) ?></legend>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="field required">
+            <label class="label text-sm text-gray-700" for="tokenbase-firstname">
+                <?= $escaper->escapeHtml(__('First Name')) ?>
+            </label>
+            <input type="text"
+                   id="tokenbase-firstname"
+                   name="billing[firstname]"
+                   value="<?= $escaper->escapeHtmlAttr((string)$address->getFirstname()) ?>"
+                   class="<?= /* @noEscape */ $inputClasses ?>"
+                   autocomplete="given-name"
+                   required/>
+        </div>
+        <div class="field required">
+            <label class="label text-sm text-gray-700" for="tokenbase-lastname">
+                <?= $escaper->escapeHtml(__('Last Name')) ?>
+            </label>
+            <input type="text"
+                   id="tokenbase-lastname"
+                   name="billing[lastname]"
+                   value="<?= $escaper->escapeHtmlAttr((string)$address->getLastname()) ?>"
+                   class="<?= /* @noEscape */ $inputClasses ?>"
+                   autocomplete="family-name"
+                   required/>
+        </div>
+        <div class="field">
+            <label class="label text-sm text-gray-700" for="tokenbase-company">
+                <?= $escaper->escapeHtml(__('Company')) ?>
+            </label>
+            <input type="text"
+                   id="tokenbase-company"
+                   name="billing[company]"
+                   value="<?= $escaper->escapeHtmlAttr((string)$address->getCompany()) ?>"
+                   class="<?= /* @noEscape */ $inputClasses ?>"
+                   autocomplete="organization"/>
+        </div>
+        <div class="field">
+            <label class="label text-sm text-gray-700" for="tokenbase-telephone">
+                <?= $escaper->escapeHtml(__('Phone Number')) ?>
+            </label>
+            <input type="tel"
+                   id="tokenbase-telephone"
+                   name="billing[telephone]"
+                   value="<?= $escaper->escapeHtmlAttr((string)$address->getTelephone()) ?>"
+                   class="<?= /* @noEscape */ $inputClasses ?>"
+                   autocomplete="tel"/>
+        </div>
+    </div>
+</fieldset>
+
+<fieldset class="mb-4">
+    <legend class="text-lg font-medium mb-2"><?= $escaper->escapeHtml(__('Cardholder Address')) ?></legend>
+
+    <div class="grid grid-cols-1 gap-4">
+        <div class="field required">
+            <label class="label text-sm text-gray-700" for="tokenbase-street">
+                <?= $escaper->escapeHtml(__('Street Address')) ?>
+            </label>
+            <input type="text"
+                   id="tokenbase-street"
+                   name="billing[street][]"
+                   value="<?= $escaper->escapeHtmlAttr((string)$block->getStreetLine(1)) ?>"
+                   class="<?= /* @noEscape */ $inputClasses ?>"
+                   autocomplete="address-line1"
+                   required/>
+            <input type="text"
+                   name="billing[street][]"
+                   value="<?= $escaper->escapeHtmlAttr((string)$block->getStreetLine(2)) ?>"
+                   class="<?= /* @noEscape */ $inputClasses ?> mt-2"
+                   aria-label="<?= $escaper->escapeHtmlAttr(__('Street Address Line 2')) ?>"
+                   autocomplete="address-line2"/>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="field required">
+                <label class="label text-sm text-gray-700" for="tokenbase-city">
+                    <?= $escaper->escapeHtml(__('City')) ?>
+                </label>
+                <input type="text"
+                       id="tokenbase-city"
+                       name="billing[city]"
+                       value="<?= $escaper->escapeHtmlAttr((string)$address->getCity()) ?>"
+                       class="<?= /* @noEscape */ $inputClasses ?>"
+                       autocomplete="address-level2"
+                       required/>
+            </div>
+            <div class="field" :class="{'required': regionRequired}">
+                <label class="label text-sm text-gray-700" for="tokenbase-region">
+                    <?= $escaper->escapeHtml(__('State/Province')) ?>
+                </label>
+                <template x-if="regions.length > 0">
+                    <select id="tokenbase-region"
+                            name="billing[region_id]"
+                            class="form-select block w-full"
+                            x-model="regionId"
+                            :required="regionRequired"
+                            autocomplete="address-level1"
+                    >
+                        <option value=""><?= $escaper->escapeHtml(__('Please select...')) ?></option>
+                        <template x-for="region in regions" :key="region.id">
+                            <option :value="region.id"
+                                    x-text="region.name"
+                                    :selected="String(region.id) === String(regionId)"></option>
+                        </template>
+                    </select>
+                </template>
+                <template x-if="regions.length === 0">
+                    <input type="text"
+                           name="billing[region]"
+                           class="<?= /* @noEscape */ $inputClasses ?>"
+                           x-model="regionText"
+                           :required="regionRequired"
+                           aria-label="<?= $escaper->escapeHtmlAttr(__('State/Province')) ?>"
+                           autocomplete="address-level1"/>
+                </template>
+            </div>
+            <div class="field required">
+                <label class="label text-sm text-gray-700" for="tokenbase-zip">
+                    <?= $escaper->escapeHtml(__('Zip/Postal Code')) ?>
+                </label>
+                <input type="text"
+                       id="tokenbase-zip"
+                       name="billing[postcode]"
+                       value="<?= $escaper->escapeHtmlAttr((string)$address->getPostcode()) ?>"
+                       class="<?= /* @noEscape */ $inputClasses ?>"
+                       autocomplete="postal-code"
+                       :required="!zipOptional"/>
+            </div>
+            <div class="field required" @change="handleCountryChange($event)">
+                <label class="label text-sm text-gray-700" for="tokenbase-country">
+                    <?= $escaper->escapeHtml(__('Country')) ?>
+                </label>
+                <?= /* @noEscape */ $block->getCountryHtmlSelect(
+                    $address->getCountryId(),
+                    'billing[country_id]',
+                    'tokenbase-country',
+                    __('Country')
+                ) ?>
+            </div>
+        </div>
+    </div>
+</fieldset>

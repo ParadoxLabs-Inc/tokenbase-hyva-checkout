@@ -1,0 +1,228 @@
+<?php declare(strict_types=1);
+
+/**
+ * Copyright © 2023-present ParadoxLabs, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Need help? Try our knowledgebase and support system:
+ *
+ * @link https://support.paradoxlabs.com
+ */
+
+use Hyva\Theme\Model\ViewModelRegistry;
+use Magento\Framework\Escaper;
+use ParadoxLabs\TokenBase\Block\Customer\Form;
+use ParadoxLabs\TokenBaseHyvaCheckout\ViewModel\DirectoryData;
+
+/** @var Form $block */
+/** @var Escaper $escaper */
+/** @var ViewModelRegistry $viewModels */
+/** @var Hyva\Theme\ViewModel\HyvaCsp $hyvaCsp */
+
+$code = $escaper->escapeHtmlAttr($block->getCode());
+$directoryData = $viewModels->require(DirectoryData::class);
+$formConfig = [
+    'code' => $block->getCode(),
+    'regionJson' => json_decode($directoryData->getRegionJson(), true),
+    'optionalZipCountries' => json_decode($directoryData->getCountriesWithOptionalZip(), true),
+    'defaultRegionId' => (string)$block->getRegionId(),
+    'regionText' => (string)$block->getRegion(),
+];
+?>
+<h2 class="text-xl font-medium mb-4">
+    <?php if ($block->isEdit()): ?>
+        <?= $escaper->escapeHtml(__('Editing %1', $block->getCard()->getLabel())) ?>
+    <?php else: ?>
+        <?= $escaper->escapeHtml(__('Add A Credit Card')) ?>
+    <?php endif; ?>
+</h2>
+
+<form action="<?= $escaper->escapeHtmlAttr($block->getAction()) ?>"
+      method="post"
+      id="tokenbase-form-<?= /* @noEscape */ $code ?>"
+      x-data="tokenbasePaymentInfoForm"
+      data-config="<?= $escaper->escapeHtmlAttr(json_encode($formConfig)) ?>"
+>
+    <?= /* @noEscape */ $block->getBlockHtml('formkey') ?>
+    <input type="hidden" name="card_id" value="<?= $block->getCard()->getId() ? $escaper->escapeHtmlAttr(
+        $block->getCard()->getHash()
+    ) : '' ?>"/>
+    <input type="hidden" name="method" value="<?= /* @noEscape */ $code ?>"/>
+    <input type="hidden" name="source" value="paymentinfo"/>
+
+    <section data-address-step x-show="step === 'address'">
+        <?= /* @noEscape */ $block->fetchView(
+            $block->getTemplateFile('ParadoxLabs_TokenBaseHyvaCheckout::customer/form/address-fields.phtml')
+        ) ?>
+
+        <div class="mt-4">
+            <button type="button" class="btn btn-primary" @click="confirmAddress">
+                <?= $escaper->escapeHtml(__('Confirm Address')) ?>
+            </button>
+        </div>
+    </section>
+
+    <section x-show="step === 'payment'" x-cloak>
+        <fieldset class="mb-4">
+            <legend class="text-lg font-medium mb-2"><?= $escaper->escapeHtml(__('Cardholder Information')) ?></legend>
+            <address class="not-italic text-sm text-gray-700 whitespace-pre-line" x-text="addressSummary"></address>
+            <button type="button" class="underline text-primary text-sm mt-2" @click="editAddress">
+                <?= $escaper->escapeHtml(__('Edit')) ?>
+            </button>
+        </fieldset>
+
+        <?= /* @noEscape */ $block->getChildHtml('payment_pane'); ?>
+    </section>
+
+    <div class="mt-6">
+        <a class="text-sm underline text-gray-500" href="<?= $escaper->escapeUrl($block->getBackUrl()) ?>">
+            <?= $escaper->escapeHtml(__('Back')) ?>
+        </a>
+    </div>
+</form>
+
+<script>
+    'use strict';
+
+    (function () {
+        if (window.tokenbasePaymentInfoFormRegistered) {
+            return;
+        }
+
+        window.tokenbasePaymentInfoFormRegistered = true;
+
+        window.addEventListener('alpine:init', () => {
+            Alpine.data('tokenbasePaymentInfoForm', () => ({
+                step: 'address',
+                config: {},
+                country: '',
+                regionId: '',
+                regionText: '',
+                addressSummary: '',
+
+                init() {
+                    this.config = JSON.parse(this.$el.dataset.config);
+
+                    const countrySelect = this.$el.querySelector('[name="billing[country_id]"]');
+                    this.country = countrySelect ? countrySelect.value : '';
+                    this.regionId = this.config.defaultRegionId || '';
+                    this.regionText = this.config.regionText || '';
+                },
+
+                get regions() {
+                    const regions = (this.config.regionJson || {})[this.country];
+
+                    if (!regions) {
+                        return [];
+                    }
+
+                    return Object.entries(regions).map(([id, region]) => ({
+                        id: id,
+                        code: region.code,
+                        name: region.name,
+                    }));
+                },
+
+                get regionRequired() {
+                    const required = (this.config.regionJson
+                        && this.config.regionJson.config
+                        && this.config.regionJson.config.regions_required) || [];
+
+                    return required.includes(this.country);
+                },
+
+                get zipOptional() {
+                    return (this.config.optionalZipCountries || []).includes(this.country);
+                },
+
+                handleCountryChange(event) {
+                    if (event.target.name !== 'billing[country_id]') {
+                        return;
+                    }
+
+                    this.country = event.target.value;
+                    this.regionId = '';
+                    this.regionText = '';
+                },
+
+                confirmAddress() {
+                    const fields = this.$el.querySelectorAll(
+                        '[data-address-step] input, [data-address-step] select'
+                    );
+
+                    for (const field of fields) {
+                        if (!field.disabled && !field.checkValidity()) {
+                            field.reportValidity();
+
+                            return;
+                        }
+                    }
+
+                    this.addressSummary = this.buildAddressSummary();
+                    this.step = 'payment';
+
+                    // Let the payment pane (gateway-specific) react once its containers are visible.
+                    this.$nextTick(() => window.dispatchEvent(new CustomEvent(
+                        this.config.code + 'PaymentinfoAddressConfirmed',
+                        {detail: {form: this.$el}}
+                    )));
+                },
+
+                editAddress() {
+                    this.step = 'address';
+
+                    window.dispatchEvent(new CustomEvent(
+                        this.config.code + 'PaymentinfoAddressEdit',
+                        {detail: {form: this.$el}}
+                    ));
+                },
+
+                buildAddressSummary() {
+                    const value = name => {
+                        const el = this.$el.querySelector('[name="' + name + '"]');
+
+                        return el && !el.disabled ? el.value : '';
+                    };
+                    const streets = Array.from(this.$el.querySelectorAll('[name="billing[street][]"]'))
+                        .map(el => el.value)
+                        .filter(Boolean);
+
+                    let region = this.regionText;
+
+                    if (this.regions.length) {
+                        const match = this.regions.find(r => String(r.id) === String(this.regionId));
+                        region = match ? match.name : '';
+                    }
+
+                    const countrySelect = this.$el.querySelector('[name="billing[country_id]"]');
+                    const country = countrySelect && countrySelect.selectedIndex >= 0
+                        ? countrySelect.options[countrySelect.selectedIndex].text
+                        : '';
+
+                    return [
+                        [value('billing[firstname]'), value('billing[lastname]')].filter(Boolean).join(' '),
+                        value('billing[company]'),
+                        ...streets,
+                        [value('billing[city]'), region, value('billing[postcode]')].filter(Boolean).join(', '),
+                        country,
+                        value('billing[telephone]'),
+                    ].filter(Boolean).join('\n');
+                },
+            }));
+        }, {once: true});
+    })();
+</script>
+<?php if (isset($hyvaCsp)): ?>
+    <?php $hyvaCsp->registerInlineScript() ?>
+<?php endif; ?>
