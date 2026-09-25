@@ -124,15 +124,15 @@ $inputClasses = 'form-input block w-full';
                        autocomplete="address-level2"
                        required/>
             </div>
-            <div class="field" :class="{'required': regionRequired}">
+            <div class="field" :class="getRegionFieldClass">
                 <label class="label text-sm text-gray-700" for="tokenbase-region">
                     <?= $escaper->escapeHtml(__('State/Province')) ?>
                 </label>
-                <template x-if="regions.length > 0">
+                <template x-if="hasRegions">
                     <select id="tokenbase-region"
                             name="billing[region_id]"
                             class="form-select block w-full"
-                            x-model="regionId"
+                            @change="setRegionId"
                             :required="regionRequired"
                             autocomplete="address-level1"
                     >
@@ -140,15 +140,16 @@ $inputClasses = 'form-input block w-full';
                         <template x-for="region in regions" :key="region.id">
                             <option :value="region.id"
                                     x-text="region.name"
-                                    :selected="String(region.id) === String(regionId)"></option>
+                                    :selected="isRegionSelected"></option>
                         </template>
                     </select>
                 </template>
-                <template x-if="regions.length === 0">
+                <template x-if="hasNoRegions">
                     <input type="text"
                            name="billing[region]"
                            class="<?= /* @noEscape */ $inputClasses ?>"
-                           x-model="regionText"
+                           :value="regionText"
+                           @input="setRegionText"
                            :required="regionRequired"
                            aria-label="<?= $escaper->escapeHtmlAttr(__('State/Province')) ?>"
                            autocomplete="address-level1"/>
@@ -164,9 +165,9 @@ $inputClasses = 'form-input block w-full';
                        value="<?= $escaper->escapeHtmlAttr((string)$address->getPostcode()) ?>"
                        class="<?= /* @noEscape */ $inputClasses ?>"
                        autocomplete="postal-code"
-                       :required="!zipOptional"/>
+                       :required="isZipRequired"/>
             </div>
-            <div class="field required" @change="handleCountryChange($event)">
+            <div class="field required" @change="handleCountryChange">
                 <label class="label text-sm text-gray-700" for="tokenbase-country">
                     <?= $escaper->escapeHtml(__('Country')) ?>
                 </label>

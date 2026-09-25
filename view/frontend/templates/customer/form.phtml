@@ -65,7 +65,7 @@ $formConfig = [
     <input type="hidden" name="method" value="<?= /* @noEscape */ $code ?>"/>
     <input type="hidden" name="source" value="paymentinfo"/>
 
-    <section data-address-step x-show="step === 'address'">
+    <section data-address-step x-show="isAddressStep">
         <?= /* @noEscape */ $block->fetchView(
             $block->getTemplateFile('ParadoxLabs_TokenBaseHyvaCheckout::customer/form/address-fields.phtml')
         ) ?>
@@ -77,7 +77,7 @@ $formConfig = [
         </div>
     </section>
 
-    <section x-show="step === 'payment'" x-cloak>
+    <section x-show="isPaymentStep" x-cloak>
         <fieldset class="mb-4">
             <legend class="text-lg font-medium mb-2"><?= $escaper->escapeHtml(__('Billing Information')) ?></legend>
             <address class="not-italic text-sm text-gray-700 whitespace-pre-line" x-text="addressSummary"></address>
@@ -150,6 +150,10 @@ $formConfig = [
                     return (this.config.optionalZipCountries || []).includes(this.country);
                 },
 
+                /**
+                 * Delegated change handler on the country field wrapper. CSP Alpine passes the
+                 * event as the first argument to a referenced handler method.
+                 */
                 handleCountryChange(event) {
                     if (event.target.name !== 'billing[country_id]') {
                         return;
@@ -160,8 +164,10 @@ $formConfig = [
                     this.regionText = '';
                 },
 
+                // Handlers below run with $el set to the clicked element (under CSP Alpine too), so
+                // they use $root to reach the form.
                 confirmAddress() {
-                    const fields = this.$el.querySelectorAll(
+                    const fields = this.$root.querySelectorAll(
                         '[data-address-step] input, [data-address-step] select'
                     );
 
@@ -179,7 +185,7 @@ $formConfig = [
                     // Let the payment pane (gateway-specific) react once its containers are visible.
                     this.$nextTick(() => window.dispatchEvent(new CustomEvent(
                         this.config.code + 'PaymentinfoAddressConfirmed',
-                        {detail: {form: this.$el}}
+                        {detail: {form: this.$root}}
                     )));
                 },
 
@@ -188,17 +194,17 @@ $formConfig = [
 
                     window.dispatchEvent(new CustomEvent(
                         this.config.code + 'PaymentinfoAddressEdit',
-                        {detail: {form: this.$el}}
+                        {detail: {form: this.$root}}
                     ));
                 },
 
                 buildAddressSummary() {
                     const value = name => {
-                        const el = this.$el.querySelector('[name="' + name + '"]');
+                        const el = this.$root.querySelector('[name="' + name + '"]');
 
                         return el && !el.disabled ? el.value : '';
                     };
-                    const streets = Array.from(this.$el.querySelectorAll('[name="billing[street][]"]'))
+                    const streets = Array.from(this.$root.querySelectorAll('[name="billing[street][]"]'))
                         .map(el => el.value)
                         .filter(Boolean);
 
@@ -209,7 +215,7 @@ $formConfig = [
                         region = match ? match.name : '';
                     }
 
-                    const countrySelect = this.$el.querySelector('[name="billing[country_id]"]');
+                    const countrySelect = this.$root.querySelector('[name="billing[country_id]"]');
                     const country = countrySelect && countrySelect.selectedIndex >= 0
                         ? countrySelect.options[countrySelect.selectedIndex].text
                         : '';
@@ -223,6 +229,23 @@ $formConfig = [
                         value('billing[telephone]'),
                     ].filter(Boolean).join('\n');
                 },
+
+                setRegionId() {
+                    this.regionId = this.$el.value;
+                },
+
+                setRegionText() {
+                    this.regionText = this.$el.value;
+                },
+
+                /* Getters for template bindings */
+                isAddressStep() {return this.step === 'address';},
+                isPaymentStep() {return this.step === 'payment';},
+                hasRegions() {return this.regions.length > 0;},
+                hasNoRegions() {return this.regions.length === 0;},
+                isRegionSelected() {return String(this.region.id) === String(this.regionId);},
+                getRegionFieldClass() {return {required: this.regionRequired};},
+                isZipRequired() {return !this.zipOptional;},
             }));
         }, {once: true});
     })();

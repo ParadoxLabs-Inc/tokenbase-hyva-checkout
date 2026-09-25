@@ -1,5 +1,12 @@
 # ParadoxLabs_TokenBaseHyvaCheckout Changelog
 
+## 1.0.1 - Unreleased
+
+- Fixed Payment Options templates for Hyvä's CSP Alpine build: the delete confirmation, the address/payment steps,
+  and the state/province and zip fields no longer use inline expressions or `x-model`, so they work under CSP.
+- Fixed the add/edit form's address validation and billing summary reading from the clicked button instead of the
+  form.
+
 ## 1.0.0 - Aug 12, 2026
 
 Initial release: shared Hyvä compatibility layer for ParadoxLabs TokenBase payment methods.
