@@ -13,7 +13,7 @@
         "paradoxlabs/tokenbase": ">=4.0"
     },
     "type": "magento2-module",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "time": "2026-07-17",
     "license": "Apache-2.0",
     "autoload": {
